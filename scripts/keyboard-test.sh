@@ -3,6 +3,10 @@
 mkdir -p out
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 IME=com.aireply.keyboard/.AiKeyboardService
+sleep 10
+adb shell ime list -a -s | sed "s/^/RESULT imelist: /"
+adb shell pm query-services -a android.view.InputMethod | sed "s/^/RESULT services: /" | head -20
+adb shell dumpsys package com.aireply.keyboard | grep -iE "BIND_INPUT|android.view.InputMethod|AiKeyboardService" | head -8 | sed "s/^/RESULT pkg: /"
 adb shell ime enable $IME
 adb shell ime set $IME
 echo "RESULT default ime: $(adb shell settings get secure default_input_method)"
