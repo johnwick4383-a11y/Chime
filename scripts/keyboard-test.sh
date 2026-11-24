@@ -5,6 +5,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 IME=com.aireply.keyboard/.AiKeyboardService
 sleep 10
 adb shell ime list -a -s | sed "s/^/RESULT imelist: /"
+adb logcat -d | grep -iE "InputMethodInfo|aireply|Unable to load|XmlPull|Skipping" | head -30 | sed "s/^/RESULT log: /"
+adb shell dumpsys package com.aireply.keyboard | grep -iE "versionName|enabled|Service" | head -12 | sed "s/^/RESULT pkginfo: /"
 adb shell pm query-services -a android.view.InputMethod | sed "s/^/RESULT services: /" | head -20
 adb shell dumpsys package com.aireply.keyboard | grep -iE "BIND_INPUT|android.view.InputMethod|AiKeyboardService" | head -8 | sed "s/^/RESULT pkg: /"
 adb shell ime enable $IME
