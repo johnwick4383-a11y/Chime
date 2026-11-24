@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -42,6 +43,10 @@ class ReplyService : AccessibilityService() {
 
     private data class Msg(val text: String, val top: Int, val mine: Boolean)
 
+    companion object {
+        private const val TAG = "AIReply" // filter logcat with this tag when debugging
+    }
+
     private val main = Handler(Looper.getMainLooper())
     private lateinit var wm: WindowManager
 
@@ -61,6 +66,7 @@ class ReplyService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        Log.d(TAG, "service connected")
         showBubble()
     }
 
@@ -129,7 +135,7 @@ class ReplyService : AccessibilityService() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) openSheet()
+                    if (!moved) safeOpenSheet()
                     true
                 }
                 else -> false
@@ -138,6 +144,7 @@ class ReplyService : AccessibilityService() {
         wm.addView(v, p)
         bubble = v
         bubbleParams = p
+        Log.d(TAG, "bubble added")
     }
 
     private fun removeBubble() {
@@ -147,7 +154,18 @@ class ReplyService : AccessibilityService() {
 
     // ------------------------------------------------------------ reading the screen
 
+    // Any failure is logged and shown as a toast, so a problem is never silent.
+    private fun safeOpenSheet() {
+        try {
+            openSheet()
+        } catch (e: Exception) {
+            Log.e(TAG, "openSheet failed", e)
+            toast("AI Reply error: " + (e.message ?: e.javaClass.simpleName))
+        }
+    }
+
     private fun openSheet() {
+        Log.d(TAG, "bubble tapped")
         if (sheet != null) return
         val root = rootInActiveWindow
         if (root == null) {
@@ -163,6 +181,7 @@ class ReplyService : AccessibilityService() {
             .fold(ArrayList<Msg>()) { acc, m -> if (acc.lastOrNull()?.text != m.text) acc.add(m); acc }
             .takeLast(10)
 
+        Log.d(TAG, "found " + chat.size + " text lines on screen")
         // Default: the newest message that looks like it came from the other person.
         // -1 means "write a new message" (also the case when no chat text was found).
         selectedIndex = chat.indexOfLast { !it.mine }
@@ -365,6 +384,7 @@ class ReplyService : AccessibilityService() {
         sheet = col
         sheetParams = p
         bubble?.visibility = View.GONE
+        Log.d(TAG, "sheet shown")
     }
 
     // Window flag toggle: the sheet is NOT focusable by default so it never steals focus from the
