@@ -80,6 +80,8 @@ tap ai
 sleep 2
 adb shell uiautomator dump /sdcard/ui.xml
 adb pull /sdcard/ui.xml out/ui2.xml
+grep -o 'text="[^"]*"' out/ui2.xml | grep -v 'text=""' | head -25 | tr "\n" " " | sed "s/^/RESULT ai texts: /"
+echo
 echo "RESULT ai panel: $(grep -o 'text="[^"]*AI type[^"]*"' out/ui2.xml | head -1) $(grep -o 'text="Generate"' out/ui2.xml | head -1)"
 adb exec-out screencap -p > out/shot3.png
 adb logcat -d > out/logcat.txt
