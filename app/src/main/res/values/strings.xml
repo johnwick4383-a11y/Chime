@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_description">Shows a small AI button over your chat apps. When you tap it, AI Reply reads the messages visible on screen, asks Claude for reply ideas in the tone you pick, and types the one you choose into the message box. Nothing is read or sent until you tap the button.</string>
+</resources>
