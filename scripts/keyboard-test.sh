@@ -84,6 +84,27 @@ grep -o 'text="[^"]*"' out/ui2.xml | grep -v 'text=""' | head -25 | tr "\n" " " 
 echo
 echo "RESULT ai panel: $(grep -o 'text="[^"]*AI type[^"]*"' out/ui2.xml | head -1) $(grep -o 'text="Generate"' out/ui2.xml | head -1)"
 adb exec-out screencap -p > out/shot3.png
+python3 - <<'PY'
+from PIL import Image
+def widest(path):
+    im = Image.open(path).convert('RGB')
+    W, H = im.size
+    best = 0
+    for y in range(int(H * 0.45), H, 4):
+        cur = run = 0
+        for x in range(0, W, 3):
+            p = im.getpixel((x, y))
+            if abs(p[0] - 62) < 14 and abs(p[1] - 107) < 14 and abs(p[2] - 255) < 14:
+                cur += 1
+                run = max(run, cur)
+            else:
+                cur = 0
+        best = max(best, run * 3)
+    return best, W
+b2, W = widest('out/shot2.png')
+b3, W = widest('out/shot3.png')
+print('RESULT ai panel open:', b3 > 0.6 * W, 'blue run keyboard', b2, 'blue run after AI tap', b3, 'width', W)
+PY
 adb logcat -d > out/logcat.txt
 echo "RESULT fatal: $(grep -c 'FATAL EXCEPTION' out/logcat.txt)"
 grep -A12 'FATAL EXCEPTION' out/logcat.txt | head -40
