@@ -10,9 +10,10 @@ import java.net.URL
 object ClaudeClient {
 
     private const val SYSTEM_PROMPT =
-        "You write reply drafts that the user will send in a chat app. " +
-        "Reply as the user, in first person. Match the language of the message being replied to. " +
-        "Keep each reply short, like a real chat message. " +
+        "You write message drafts that the user will send in a chat app. Usually they are replies; " +
+        "if there is no message to answer, they are new messages. " +
+        "Write as the user, in first person. Match the language of the chat or of the user's context. " +
+        "Keep each draft short, like a real chat message (up to about 3 sentences). " +
         "Output ONLY a JSON array of exactly 3 different strings. No explanations, no markdown."
 
     fun suggest(
@@ -24,16 +25,22 @@ object ClaudeClient {
         extra: String
     ): List<String> {
         val prompt = buildString {
-            append("Recent chat (Me = the user, Them = the other person; labels are a best guess):\n")
-            append(conversation).append("\n\n")
-            append("Write 3 replies to this message from Them:\n\"").append(target).append("\"\n\n")
+            if (conversation.isNotBlank()) {
+                append("Recent chat (Me = the user, Them = the other person; labels are a best guess):\n")
+                append(conversation).append("\n\n")
+            }
+            if (target.isBlank()) {
+                append("There is no message to answer. Write 3 different NEW messages the user can send, based on the context below.\n\n")
+            } else {
+                append("Write 3 replies to this message from Them:\n\"").append(target).append("\"\n\n")
+            }
             append("Tone: ").append(tone.instruction).append(".\n")
             if (extra.isNotBlank()) append("Extra context from the user: ").append(extra.trim()).append("\n")
         }
 
         val body = JSONObject()
             .put("model", model)
-            .put("max_tokens", 500)
+            .put("max_tokens", 700)
             .put("system", SYSTEM_PROMPT)
             .put(
                 "messages",
