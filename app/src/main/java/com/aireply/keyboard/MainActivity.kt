@@ -84,8 +84,8 @@ class MainActivity : Activity() {
         }, lp(top = 12))
 
         // Step 3
-        col.addView(card("3  Pick your usual tone",
-            "This is the starting tone in the reply sheet. You can change it every time.") { c ->
+        col.addView(card("3  Choose your tones",
+            "Tap to turn tones on or off, as many as you like. Only the ones you turn on appear in the menu. Each time you tap the AI button you choose the tone for that chat.") { c ->
             val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             // Two tone chips per row.
             Tones.all.chunked(2).forEach { pair ->
@@ -95,7 +95,10 @@ class MainActivity : Activity() {
                         gravity = android.view.Gravity.CENTER
                         setPadding(dp(12), dp(10), dp(12), dp(10))
                         setOnClickListener {
-                            Prefs.saveTone(this@MainActivity, t.id)
+                            // Toggle this tone on or off (multi-select).
+                            val now = Prefs.enabled(this@MainActivity).toMutableSet()
+                            if (!now.remove(t.id)) now.add(t.id)
+                            Prefs.setEnabled(this@MainActivity, now)
                             refreshTones()
                         }
                     }
@@ -128,9 +131,9 @@ class MainActivity : Activity() {
     }
 
     private fun refreshTones() {
-        val current = Prefs.toneId(this)
+        val enabled = Prefs.enabled(this)
         for ((id, view) in toneButtons) {
-            val selected = id == current
+            val selected = id in enabled
             view.setTextColor(if (selected) Color.WHITE else ink)
             view.background = GradientDrawable().apply {
                 cornerRadius = dp(20).toFloat()
