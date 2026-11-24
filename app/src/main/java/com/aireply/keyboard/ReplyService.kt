@@ -380,8 +380,10 @@ class ReplyService : AccessibilityService() {
             gravity = Gravity.BOTTOM
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         }
-        wm.addView(col, p)
-        sheet = col
+        // Scrollable, so a long sheet (for example with the tone menu open) never runs off a small screen.
+        val scroller = ScrollView(this).apply { addView(col) }
+        wm.addView(scroller, p)
+        sheet = scroller
         sheetParams = p
         bubble?.visibility = View.GONE
         Log.d(TAG, "sheet shown")
