@@ -54,7 +54,7 @@ class ReplyService : AccessibilityService() {
     private var targetField: AccessibilityNodeInfo? = null
     private var chat: List<Msg> = emptyList()
     private var selectedIndex = 0
-    private var tone: Tone = Tones.all[0]
+    private var tone: Tone? = null // no default: the user picks a tone for every chat
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
@@ -163,13 +163,10 @@ class ReplyService : AccessibilityService() {
             .fold(ArrayList<Msg>()) { acc, m -> if (acc.lastOrNull()?.text != m.text) acc.add(m); acc }
             .takeLast(10)
 
-        if (chat.isEmpty()) {
-            toast("No chat messages found on this screen")
-            return
-        }
         // Default: the newest message that looks like it came from the other person.
-        selectedIndex = chat.indexOfLast { !it.mine }.let { if (it >= 0) it else chat.lastIndex }
-        tone = Tones.byId(Prefs.toneId(this))
+        // -1 means "write a new message" (also the case when no chat text was found).
+        selectedIndex = chat.indexOfLast { !it.mine }
+        tone = null
         buildSheet()
     }
 
@@ -258,10 +255,19 @@ class ReplyService : AccessibilityService() {
         val rows = ArrayList<TextView>()
         fun paintRows() {
             rows.forEachIndexed { i, tv ->
-                val sel = i == selectedIndex
+                val sel = i - 1 == selectedIndex // rows[0] is the "new message" row
                 tv.background = box(if (sel) teal else 0xFFDAD5CC.toInt(), if (sel) 0xFFF1F8F6.toInt() else Color.WHITE)
             }
         }
+        // First entry: write a brand-new message (no reply), e.g. a good morning note, info or blessing.
+        val composeRow = TextView(this).apply {
+            text = "Write a new message (no reply)"
+            textSize = 14f; setTextColor(ink); typeface = Typeface.DEFAULT_BOLD
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setOnClickListener { selectedIndex = -1; paintRows() }
+        }
+        rows.add(composeRow)
+        col.addView(composeRow, lp(top = 4))
         chat.forEachIndexed { i, m ->
             val tv = TextView(this).apply {
                 text = (if (m.mine) "Me: " else "Them: ") + m.text
@@ -284,19 +290,19 @@ class ReplyService : AccessibilityService() {
             setPadding(dp(14), dp(12), dp(14), dp(12))
             background = box(0xFF9AA39F.toInt(), Color.WHITE)
         }
-        fun paintTone() { toneBtn.text = tone.label + "   ▾" }
+        fun paintTone() { toneBtn.text = (tone?.label ?: "Choose a tone") + "   ▾" }
         paintTone()
         col.addView(toneBtn, lp(top = 4))
 
         val toneList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
-        Tones.all.forEach { t ->
+        // Only the tones switched on in the setup screen are listed.
+        Tones.all.filter { it.id in Prefs.enabled(this) }.ifEmpty { Tones.all }.forEach { t ->
             toneList.addView(TextView(this).apply {
                 text = t.label + "  -  " + t.hint
                 textSize = 14f; setTextColor(ink)
                 setPadding(dp(14), dp(11), dp(14), dp(11))
                 setOnClickListener {
                     tone = t
-                    Prefs.saveTone(this@ReplyService, t.id)
                     paintTone()
                     toneList.visibility = View.GONE
                 }
@@ -334,8 +340,13 @@ class ReplyService : AccessibilityService() {
         go.setOnClickListener {
             hideKeyboard(extra)
             setSheetFocusable(false)
-            toneList.visibility = View.GONE
-            generate(results, extra.text.toString())
+            if (tone == null) {
+                toneList.visibility = View.VISIBLE
+                showNote(results, "Choose a tone for this chat first.", 0xFFB42318.toInt())
+            } else {
+                toneList.visibility = View.GONE
+                generate(results, extra.text.toString())
+            }
         }
         col.addView(go, lp(top = 10))
         col.addView(results, lp(top = 8))
@@ -386,12 +397,16 @@ class ReplyService : AccessibilityService() {
             showNote(results, "Add your Claude API key in the AI Reply app first.", 0xFFB42318.toInt())
             return
         }
-        showNote(results, "Claude is writing ${tone.label.lowercase()} replies...", 0xFF5B6663.toInt())
+        val chosen = tone ?: return
+        if (selectedIndex < 0 && extra.isBlank()) {
+            showNote(results, "Say what the message should be about in the context box.", 0xFFB42318.toInt())
+            return
+        }
+        showNote(results, "Claude is writing ${chosen.label.lowercase()} messages...", 0xFF5B6663.toInt())
 
-        val target = chat[selectedIndex].text
+        val target = if (selectedIndex >= 0) chat[selectedIndex].text else ""
         val convo = chat.joinToString("\n") { (if (it.mine) "Me: " else "Them: ") + it.text }
         val model = Prefs.model(this)
-        val chosen = tone
 
         // Network on a background thread; results posted back to the main thread.
         Thread {
