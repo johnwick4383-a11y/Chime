@@ -3,7 +3,12 @@
 mkdir -p out
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 IME=com.aireply.keyboard/.AiKeyboardService
-sleep 10
+adb shell ime list -a -s | sed "s/^/RESULT before-reboot: /"
+adb reboot
+adb wait-for-device
+until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 3; done
+sleep 25
+adb shell ime list -a -s | sed "s/^/RESULT after-reboot: /"
 adb shell ime list -a -s | sed "s/^/RESULT imelist: /"
 adb logcat -d | grep -E "aireply|InputMethodManagerService|InputMethodInfo" | grep -vE "google|Latin" | tail -25 | sed "s/^/RESULT log: /"
 adb shell dumpsys input_method | grep -iE "aireply|mMethodList|InputMethodInfo" | head -8 | sed "s/^/RESULT imms: /"
