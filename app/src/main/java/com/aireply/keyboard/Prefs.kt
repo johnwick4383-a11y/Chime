@@ -11,13 +11,18 @@ object Prefs {
 
     fun apiKey(c: Context): String = sp(c).getString("apiKey", "") ?: ""
     fun model(c: Context): String = sp(c).getString("model", DEFAULT_MODEL)?.ifBlank { DEFAULT_MODEL } ?: DEFAULT_MODEL
-    fun toneId(c: Context): String = sp(c).getString("tone", "professional") ?: "professional"
+
+    // Tones the user switched on in the setup screen. Nothing saved yet = all tones are on.
+    fun enabled(c: Context): Set<String> {
+        val raw = sp(c).getString("tones", null) ?: return Tones.all.map { it.id }.toSet()
+        return raw.split(',').filter { it.isNotBlank() }.toSet()
+    }
 
     fun save(c: Context, apiKey: String, model: String) {
         sp(c).edit().putString("apiKey", apiKey.trim()).putString("model", model.trim()).apply()
     }
 
-    fun saveTone(c: Context, id: String) {
-        sp(c).edit().putString("tone", id).apply()
+    fun setEnabled(c: Context, ids: Set<String>) {
+        sp(c).edit().putString("tones", ids.joinToString(",")).apply()
     }
 }
